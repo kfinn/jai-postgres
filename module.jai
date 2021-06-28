@@ -68,8 +68,8 @@ send_query :: (conn: *PGconn, command: string, args: .. Any) -> *PGresult {
 	push_context new_context {
 		param_types := NewArray(args.count, Oid, initialized = false);
 		param_values := NewArray(args.count, *u8, initialized = false);
-		param_lengths := NewArray(args.count, int, initialized = false);
-		param_formats := NewArray(args.count, int, initialized = false);
+		param_lengths := NewArray(args.count, s32, initialized = false);
+		param_formats := NewArray(args.count, s32, initialized = false);
 
 		for arg, index: args {
 			if arg.type.type == {
@@ -95,7 +95,7 @@ send_query :: (conn: *PGconn, command: string, args: .. Any) -> *PGresult {
 					}
 					// @ToDo: Assert other runtime size
 					param_values[index] = be_value;
-					param_lengths[index] = info.runtime_size;
+					param_lengths[index] = cast(s32)info.runtime_size;
 					param_formats[index] = 1;
 
 				case Type_Info_Tag.FLOAT;
@@ -111,14 +111,14 @@ send_query :: (conn: *PGconn, command: string, args: .. Any) -> *PGresult {
 						memcpy(be_value, *be_val, arg.type.runtime_size);
 					}
 					param_values[index] = be_value;
-					param_lengths[index] = arg.type.runtime_size;
+					param_lengths[index] = cast(s32)arg.type.runtime_size;
 					param_formats[index] = 1;
 
 				case Type_Info_Tag.STRING;
 					str := cast(*string) arg.value_pointer;
 					param_types[index] = cast(Oid) Pq_Types.VARCHAR;
 					param_values[index] = str.data;
-					param_lengths[index] = str.count;
+					param_lengths[index] = cast(s32)str.count;
 					param_formats[index] = 1;
 
 				// ToDo: Struct as Jsonb?
@@ -137,7 +137,7 @@ send_query :: (conn: *PGconn, command: string, args: .. Any) -> *PGresult {
 		if args.count == 0 {
 			query_res = PQexec(conn, c_command);
 		} else {
-			query_res = PQexecParams(conn, c_command, args.count, param_types.data, param_values.data, param_lengths.data, param_formats.data, 1);
+			query_res = PQexecParams(conn, c_command, cast(s32)args.count, param_types.data, param_values.data, param_lengths.data, param_formats.data, 1);
 		}
 
 		return query_res;
